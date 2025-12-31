@@ -1,0 +1,61 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+
+st.set_page_config(page_title="My Personal Ops", layout="wide")
+
+# Initialize session state for data storage if not already there
+if 'expenses' not in st.session_state:
+    st.session_state.expenses = []
+if 'tasks' not in st.session_state:
+    st.session_state.tasks = []
+
+st.title("💼 Personal Ops & Pilot Dashboard")
+
+# --- SIDEBAR: QUICK STATS ---
+st.sidebar.header("📊 Today's Summary")
+total_spend = sum(item['Amount'] for item in st.session_state.expenses)
+st.sidebar.metric("Total Spend Today", f"${total_spend:.2f}")
+st.sidebar.write(f"Pending Tasks: {len(st.session_state.tasks)}")
+
+# --- TABBED INTERFACE ---
+tab1, tab2, tab3 = st.tabs(["💸 Expenses", "✅ Tasks & Activities", "📈 Data Export"])
+
+with tab1:
+    st.header("Log Expense")
+    with st.form("expense_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        exp_name = col1.text_input("Item/Description")
+        exp_amt = col2.number_input("Amount", min_value=0.0, step=0.01)
+        category = st.selectbox("Category", ["Work", "Family", "Personal", "Emergency"])
+        
+        if st.form_submit_button("Add Expense"):
+            st.session_state.expenses.append({"Date": datetime.now(), "Item": exp_name, "Amount": exp_amt, "Category": category})
+            st.rerun()
+
+    if st.session_state.expenses:
+        st.table(pd.DataFrame(st.session_state.expenses).tail(5))
+
+with tab2:
+    st.header("Task & Activity Log")
+    new_task = st.text_input("New Task (e.g., 'Pay Electricity Bill' or 'Gym Session')")
+    if st.button("Add Task"):
+        st.session_state.tasks.append(new_task)
+        st.rerun()
+    
+    for i, task in enumerate(st.session_state.tasks):
+        col_t, col_b = st.columns([0.8, 0.2])
+        col_t.write(f"🔹 {task}")
+        if col_b.button("Done", key=f"task_{i}"):
+            st.session_state.tasks.pop(i)
+            st.success("Task cleared!")
+            st.rerun()
+
+with tab3:
+    st.header("Review & Save")
+    if st.session_state.expenses:
+        df = pd.DataFrame(st.session_state.expenses)
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("Download Expense Log (CSV)", csv, "my_expenses.csv", "text/csv")
+    else:
+        st.write("No data to export yet.")
